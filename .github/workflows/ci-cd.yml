@@ -28,7 +28,7 @@ jobs:
       run: pnpm --version
 
     - name: Install dependencies
-      run: pnpm install
+      run: npm_config_build_from_source=true pnpm install
 
     - name: Build the app
       run: pnpm build
