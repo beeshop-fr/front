@@ -33,7 +33,7 @@ jobs:
       run: pnpm test
 
     - name: Archive production build
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: nuxt-dist
         path: ./.output
