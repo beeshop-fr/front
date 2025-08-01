@@ -14,7 +14,7 @@
 </template>
 
 <script lang="ts" setup>
-import Miels from './Miels.vue';
+import Miels from './MielsCard.vue';
 import { ref } from 'vue';
 
 const miels = ref([
