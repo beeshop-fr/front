@@ -2,13 +2,14 @@
   <div class="w-44 bg-white rounded-lg shadow-md p-4 flex flex-col items-center border border-gray-300 font-sans">
     
     <!-- Image -->
-    <img :src="image" :alt="title" class="w-full h-32 object-cover rounded-lg mb-2">
+    <img :src="image" :alt="title || 'Miel'" class="w-full h-32 object-cover rounded-lg mb-2">
 
     <!-- Infos -->
-    <h3 class="text-lg font-semibold text-center">{{ title }}</h3>
+    <h3 class="text-lg text-gray-600 font-semibold text-center">{{ title }}</h3>
     <hr class="w-full border-gray-300 my-1">
-    <p class="text-sm text-gray-600">{{ type }}</p>
+    <p class="text-sm text-gray-600">{{ getTypeLabel(type) }}</p>
     <p class="text-sm text-gray-600">{{ date }}</p>
+    <p class="text-sm text-gray-600 italic">{{ description }}</p>
     <p class="text-sm font-bold text-black">Prix : {{ price }} €</p>
 
     <!-- Slot ou mode : actions contextuelles -->
@@ -32,8 +33,17 @@ const props = defineProps({
   title: String,
   type: String,
   date: String,
-  price: Number
+  price: Number,
+  description: String
 })
+
+const typeLabels = {
+  PrintempsCremeux: 'Miel de fleurs crémeux',
+  PrintempsLiquide: 'Miel de fleurs liquide',
+  EteLiquide: 'Miel d\'été'
+}
+
+const getTypeLabel = (type: string) => typeLabels[type as keyof typeof typeLabels] || type
 
 const emit = defineEmits(["addToCart"])
 function addToCart() {

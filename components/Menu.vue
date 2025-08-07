@@ -2,7 +2,12 @@
   <div class="h-auto bg-componentBackground/90 border border-grisClair rounded-lg p-2 flex flex-col space-y-2 z-10">
     <nav class="flex flex-col w-full">
 
-      <a href="#" class="text-white text-center py-2 bg-componentBackground/90 hover:bg-jauneMiel hover:text-black rounded-md transition">Panier</a>
+      <NuxtLink
+        to="/panier"
+        class="text-white text-center py-2 bg-componentBackground/90 hover:bg-jauneMiel hover:text-black rounded-md transition"
+      >
+        Panier
+      </NuxtLink>
         <!-- Ligne séparatrice -->
         <div class="border-t border-grisClair my-4"></div>
 

@@ -3,9 +3,10 @@
     <MielsCard
       v-for="miel in miels"
       :key="miel.id"
-      :image="miel.image"
+      :image="miel.image || '/images/miel1.jpg'"
       :title="miel.nom"
-      :type="miel.type"
+      :type="miel.typeMiel"
+      :description="miel.description"
       :date="miel.date"
       :price="miel.prix"
     >
@@ -21,15 +22,7 @@
 import MielsCard from './MielsCard.vue'
 
 defineProps<{
-  miels: {
-    id: number
-    nom: string
-    prix: number
-    stock: number
-    image: string
-    type: string
-    date: string
-  }[]
+  miels: any[]
 }>()
 
 defineEmits(['edit', 'delete'])

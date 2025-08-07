@@ -10,7 +10,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      apiBase: process.env.API_BASE_URL || 'http://localhost:5256',
+      apiBase: process.env.API_BASE_URL || 'http://localhost:7123',
     },
   },
   modules: ['@nuxtjs/tailwindcss']
