@@ -32,11 +32,13 @@
       <!-- Bloc Menu + Infos -->
       <div class="flex flex-col justify-between gap-y-12 self-start w-64">
         <Menu class=""></Menu>
-        <Infos class=""></Infos>
+        <!-- <Infos class=""></Infos> -->
       </div>
 
       <div class="flex-1">
-        <Produits class="w-full"></Produits>
+        <!-- <div v-if="pending" class="text-fontColor/80">Chargement des miels…</div>
+        <div v-else-if="error" class="text-red-400">Erreur de chargement.</div> -->
+        <Produits class="w-full" :miels="miels" @add-to-cart="onAddToCart" ></Produits>
       </div>
 
     </div>
@@ -63,17 +65,77 @@
 </template>
 
 
-<script setup>
-import Menu from '~/components/Menu.vue';
-import Produits from '~/components/Produits.vue';
-import Infos from '~/components/Infos.vue';
+<script setup lang="ts">
+import Menu from '~/components/Menu.vue'
+import Produits from '~/components/Produits.vue'
 import { useRouter } from 'vue-router'
-const router = useRouter()
+import { useCartStore } from '~/stores/cart'
+import { computed } from 'vue'
+import { useLogout } from '../components/useLogout'
 
-function deconnexion() {
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
-  router.push('/')
+definePageMeta({ middleware: 'auth' }) //protection de la page
+
+const cart = useCartStore()
+const router = useRouter()
+const apiBase = useRuntimeConfig().public.apiBase
+const { logout } = useLogout()
+const deconnexion = logout
+
+// 1) fetch miels + stocks (comme la page admin)
+const { data: rawMiels, pending: pMiels, error: eMiels } = await useAsyncData(
+  'miels',
+  async () => {
+    const res = await $fetch<any>(`${apiBase}/api/main/Miel`)
+    return Array.isArray(res) ? res : (res?.entities ?? [])
+  },
+  { server: false, lazy: true }
+)
+
+const { data: rawStocks, pending: pStocks, error: eStocks } = await useAsyncData(
+  'stocks',
+  async () => {
+    const res = await $fetch<any>(`${apiBase}/api/main/Stock`)
+    return Array.isArray(res) ? res : (res?.entities ?? [])
+  },
+  { server: false, lazy: true }
+)
+
+// 2) merge & mapping vers le format attendu par la card boutique
+const miels = computed(() => {
+  const m = rawMiels.value ?? []
+  const s = rawStocks.value ?? []
+  const sMap = new Map(s.map((st: any) => [st.mielId, st]))
+
+  return m.map((x: any) => {
+    const st = sMap.get(x.id)
+    return {
+      id: x.id,
+      nom: x.nom ?? x.title ?? x.name ?? 'Miel',
+      typeMiel: x.typeMiel ?? x.type ?? '',
+      date: x.date ?? x.recolte ?? '',
+      prix: x.prix ?? x.price ?? 0,
+      description: x.description ?? '',
+      image: x.imagePath ? `${apiBase}${x.imagePath}` : (x.image ?? '/images/miel1.jpg'),
+      quantite: st?.quantite ?? x.quantite ?? 0,
+      stockId: st?.id ?? null
+    }
+  })
+})
+
+// 3) actions
+const {$notify} = useNuxtApp()
+
+function onAddToCart(miel: any) {
+  cart.add({ id: miel.id, nom: miel.nom, prix: miel.prix, type: miel.typeMiel, date: miel.date }, 1)
+  // notif navigateur si plugin dispo, sinon silencieux
+  $notify?.(`"${miel.nom}" a été ajouté au panier.`)
 }
 
+// function deconnexion() {
+//   if (process.client) {
+//     localStorage.removeItem('access_token')
+//     localStorage.removeItem('refresh_token')
+//   }
+//   router.push('/')
+// }
 </script>

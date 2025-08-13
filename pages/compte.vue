@@ -54,6 +54,8 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 
+definePageMeta({ middleware: 'auth' }) //protection de la page
+
 const router = useRouter()
 
 const user = reactive({

@@ -21,14 +21,22 @@
 
       <a href="#" class="text-white text-center py-2 bg-componentBackground/90 hover:bg-jauneMiel hover:text-black rounded-md transition">Qui sommes-nous ?</a>
       
+      <div  v-if="isAdmin" class="border-t border-grisClair my-4"></div>
+
+      <NuxtLink
+        v-if="isAdmin"
+        to="/admin"
+        class="text-white text-center py-2 bg-componentBackground/90 hover:bg-jauneMiel hover:text-black rounded-md transition"
+      >
+        Admin
+      </NuxtLink>
+      
     </nav>
   </div>
 </template>
 
 <script lang="ts" setup>
+import { useAuth } from './useAuth';
 
+const { isAdmin } = useAuth()
 </script>
-
-<style>
-
-</style>

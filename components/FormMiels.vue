@@ -8,6 +8,11 @@
       </div>
 
       <div class="mb-3">
+        <label class="block text-sm">Quantité en stock</label>
+        <input type="number" v-model.number="form.quantite" class="w-full border rounded p-2" required />
+      </div>
+
+      <div class="mb-3">
         <label class="block text-sm">Prix (€)</label>
         <input type="number" v-model.number="form.prix" class="w-full border rounded p-2" required />
       </div>
@@ -83,7 +88,8 @@ const form = reactive({
   typeMiel: props.miel?.typeMiel ?? '',
   date: props.miel?.date ?? '',
   description: props.miel?.description ?? '',
-  image: props.miel?.image ?? ''
+  image: props.miel?.image ?? '',
+  quantite: 0
 })
 
 const imageFile = ref<File | null>(null)
@@ -112,6 +118,6 @@ function valider() {
     data.append('id', String(props.miel.id))
   }
 
-  emit('submit', data)
+  emit('submit', { formData: data, quantite: form.quantite, mielId: props.miel?.id })
 }
 </script>

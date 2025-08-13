@@ -25,10 +25,14 @@ import { ref, onMounted } from 'vue'
 import ListeMiels from '~/components/ListeMiels.vue'
 import FormMiel from '~/components/FormMiels.vue'
 
+
+definePageMeta({ middleware: 'admin' })
+
 const miels = ref<any[]>([])
 const formVisible = ref(false)
 const mielEnCours = ref<any>(null)
 const config = useRuntimeConfig()
+const stocks = ref<any[]>([])
 
 // Chargement initial
 onMounted(async () => {
@@ -46,6 +50,34 @@ onMounted(async () => {
     } else {
       console.error("Erreur de récupération des miels")
     }
+
+    // Récupération des stocks
+    const resStocks = await fetch(`${config.public.apiBase}/api/main/Stock`)
+    if (resStocks.ok) {
+      const result = await resStocks.json()
+      const stockList = result.entities 
+      console.log("Stock reçu :", stockList)
+
+      // Par exemple, si tu veux relier ça à un `ref` :
+      stocks.value = stockList
+
+      const stockMap = new Map<string, any>()
+      for (const stock of stockList) {
+        stockMap.set(stock.mielId, stock)
+      }
+
+      miels.value = miels.value.map(miel => {
+        const stock = stockMap.get(miel.id)
+        return {
+          ...miel,
+          stockId: stock?.id || null,
+          quantite: stock?.quantite ?? 0,
+        }
+      })
+    } else {
+      console.error("Erreur de récupération du stock")
+    }
+
   } catch (e) {
     console.error(e)
   }
@@ -75,47 +107,53 @@ async function supprimerMiel(id: string) {
   }
 }
 
-async function enregistrer(formData: FormData) {
-  const id = formData.get('id')
+async function enregistrer({ formData, quantite, mielId, stockId }) {
+  const isEditing = !!mielId
+  let mielResult = null
 
-  if (id) {
-    const updatedMiel = {
-      nom: formData.get('Nom'),
-      prix: parseFloat(formData.get('Prix') as string),
-      poids: parseInt(formData.get('Poids') as string),
-      typeMiel: formData.get('TypeMiel'),
-      date: formData.get('Date'),
-      description: formData.get('Description'),
-    }
-
-    const response = await fetch(`${config.public.apiBase}/api/main/Miel/${id}`, {
+  // Création ou modification du miel
+  if (isEditing) {
+    const response = await fetch(`${config.public.apiBase}/api/main/Miel/${mielId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedMiel)
+      body: formData
     })
-
-    if (response.ok) {
-      const result = await response.json()
-      const index = miels.value.findIndex(m => m.id === result.id)
-      if (index !== -1) miels.value[index] = result
-    } else {
-      console.error('Erreur mise à jour')
-    }
-
+    if (!response.ok) return console.error("Erreur update miel")
+    mielResult = await response.json()
+    const index = miels.value.findIndex(m => m.id === mielResult.id)
+    if (index !== -1) miels.value[index] = mielResult
   } else {
     const response = await fetch(`${config.public.apiBase}/api/main/Miel`, {
       method: 'POST',
       body: formData
     })
+    if (!response.ok) return console.error("Erreur création miel")
+    mielResult = await response.json()
+    miels.value.push(mielResult)
+  }
 
-    if (response.ok) {
-      const result = await response.json()
-      miels.value.push(result)
-    } else {
-      console.error('Erreur création miel')
-    }
+  // Gestion du stock
+  const stockPayload = {
+    mielId: mielResult.id,
+    quantite
+  }
+
+  const stockUrl = stockId
+    ? `${config.public.apiBase}/api/main/Stock/${stockId}`
+    : `${config.public.apiBase}/api/main/Stock`
+
+  const stockMethod = stockId ? 'PUT' : 'POST'
+
+  const stockRes = await fetch(stockUrl, {
+    method: stockMethod,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(stockPayload)
+  })
+
+  if (!stockRes.ok) {
+    console.error("Erreur stock")
   }
 
   fermerFormulaire()
 }
+
 </script>
