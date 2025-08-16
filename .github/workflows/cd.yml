@@ -29,9 +29,10 @@ jobs:
           VERSION=$(jq -r .version package.json)
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
+
       - name: Build Docker image
         run: |
-          docker build -t louis404/beeshop-front:${{ steps.vars.outputs.VERSION }} .
+          docker build --no-cache -t louis404/beeshop-front:${{ steps.vars.outputs.VERSION }} .
           docker tag louis404/beeshop-front:${{ steps.vars.outputs.VERSION }} louis404/beeshop-front:latest
 
       - name: Push Docker image
