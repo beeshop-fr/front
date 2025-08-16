@@ -1,26 +1,26 @@
 # ---- Deps cache (lockfile first) ----
-FROM node:18-alpine AS deps
+FROM node:20-alpine AS deps
 WORKDIR /app
 RUN npm i -g pnpm@8 && apk add --no-cache libc6-compat
+# On force un chemin stable pour le store
+RUN pnpm config set store-dir /pnpm/store
 COPY package.json pnpm-lock.yaml ./
-# Pré-fetch EXACT d'après le lockfile → build reproductible
 RUN pnpm fetch --frozen-lockfile
 
 # ---- Build ----
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
-RUN npm i -g pnpm@8 && apk add --no-cache libc6-compat
-COPY --from=deps /root/.pnpm-store /root/.pnpm-store
+RUN npm i -g pnpm@8 && apk add --no-cache libc6-compat python3 make g++
+RUN pnpm config set store-dir /pnpm/store
+COPY --from=deps /pnpm/store /pnpm/store
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
 ENV NODE_ENV=production
-# (debug) imprime la version de vue utilisée au build
-RUN node -e "console.log('Vue version:', require('./node_modules/vue/package.json').version)"
 RUN pnpm build
 
 # ---- Runtime (slim) ----
-FROM node:18-alpine
+FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NITRO_HOST=0.0.0.0
