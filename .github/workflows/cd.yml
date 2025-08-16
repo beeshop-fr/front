@@ -3,7 +3,7 @@ name: CD - Front (Docker Build/Push + Deploy)
 on:
   push:
     branches: [ main, release/** ]
-    paths: [ "front/**", ".github/workflows/front-cd.yml", "front/Dockerfile" ]
+    paths: [ "front/**", ".github/workflows/cd.yml", "front/Dockerfile" ]
   workflow_dispatch: {}
 
 jobs:
