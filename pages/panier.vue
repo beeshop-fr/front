@@ -89,32 +89,23 @@
 import { useRouter } from 'vue-router'
 import { useCartStore } from '~/stores/cart'
 
-definePageMeta({ middleware: 'auth' }) //protection de la page
+definePageMeta({ middleware: 'auth' })
 
 type PanierItem = {
-  id: string;        // mielId côté back
-  nom: string;
-  prix: number;
-  quantite: number;
-  type?: string;
-  date?: string;
+  id: string     // mielId côté back
+  nom: string
+  prix: number
+  quantite: number
+  type?: string
+  date?: string
 }
 
 const router = useRouter()
 const config = useRuntimeConfig()
 const cart = useCartStore()
 
-// Id de la commande ouverte (panier)
-const commandeId = ref<string | null>(null)
-
 const panier = computed<PanierItem[]>(() => cart.items)
 const totalPanier = computed(() => cart.total)
-
-// // Ton panier côté front (ex: local jusqu’à ce que tu appelles l’API)
-// const panier = ref<PanierItem[]>([
-//   { id: '11111111-1111-1111-1111-111111111111', nom: 'Miel de lavande', prix: 7.5, quantite: 2, type: 'Fleurs', date: '2024' },
-//   { id: '22222222-2222-2222-2222-222222222222', nom: 'Miel d’acacia',  prix: 6.0, quantite: 1, type: 'Boisé',  date: '2024' },
-// ])
 
 const infos = reactive({
   nom: '',
@@ -128,59 +119,54 @@ const envoye = ref(false)
 const loading = ref(false)
 const errorMsg = ref<string | null>(null)
 
-function retirer(id: string)  { cart.remove(id) }
-
+// --- Helpers ---
+function isValidEmail(s: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)
+}
+function clampQty(item: PanierItem) {
+  if (!item.quantite || item.quantite < 1) item.quantite = 1
+  item.quantite = Math.floor(item.quantite)
+}
+function retirer(id: string) {
+  cart.remove(id)
+}
 function fermer() {
   formVisible.value = false
   envoye.value = false
   errorMsg.value = null
 }
 
-// --- Appels API  ---
-
-async function ensureCommande(email: string) {
-  // Crée une commande (ou récupère l’existant côté back)
-  const created = await $fetch(`${config.public.apiBase}/api/main/Commandes`, {
-    method: 'POST',
-    body: {
-      userEmail: email,                   // le handler forcera Statut = EnCours
-      dateCommande: new Date().toISOString()
-    }
-  })
-  // On s’attend à { id: "..." }
-  commandeId.value = (created as any).id
-  cart.setEmail(email)
-  cart.setCommandeId((created as any).id)
+function buildCheckoutPayload() {
+  return {
+    userEmail: infos.email,
+    // si tu veux inclure nom/téléphone/message, ajoute-les aussi dans le body et gère-les côté back
+    lignes: panier.value.map(i => ({
+      mielId: i.id,
+      quantite: Math.max(1, Math.floor(i.quantite || 1))
+    }))
+  }
 }
 
-async function syncPanierLignes() {
-  if (!cart.commandeId) throw new Error('CommandeId manquant')
-  await Promise.all(cart.items.map(item =>
-    $fetch(`${config.public.apiBase}/api/main/CommandesMiel`, {
-      method: 'POST',
-      body: { commandeId: cart.commandeId, mielId: item.id, quantite: item.quantite }
-    })
-  ))
-}
-
-async function validerCommande() {
-  if (!cart.commandeId) throw new Error('CommandeId manquant')
-  await $fetch(`${config.public.apiBase}/api/main/Commandes/${cart.commandeId}/valider`, { method: 'PUT' })
-}
-
-// --- Bouton "Valider la commande" ---
+// --- Envoi en 1 seul appel ---
 async function envoyerCommande() {
-  errorMsg.value = null; loading.value = true
+  errorMsg.value = null
+  loading.value = true
   try {
-    if (!infos.email) throw new Error('Email requis')
-    await ensureCommande(infos.email)
-    await syncPanierLignes()
-    await validerCommande()
+    if (!isValidEmail(infos.email)) throw new Error('Email invalide')
+    if (!panier.value.length) throw new Error('Panier vide')
+
+    const payload = buildCheckoutPayload()
+
+    await $fetch(`${config.public.apiBase}/api/main/Checkout`, {
+      method: 'POST',
+      body: payload
+    })
+
     envoye.value = true
     // Option : vider le panier après succès
     // cart.clear()
   } catch (err: any) {
-    errorMsg.value = err?.message ?? 'Erreur lors de l’envoi'
+    errorMsg.value = err?.data?.message ?? err?.message ?? 'Erreur lors de l’envoi'
   } finally {
     loading.value = false
   }
