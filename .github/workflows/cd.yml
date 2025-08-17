@@ -32,7 +32,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build --no-cache -f front/Dockerfile -t louis404/beeshop-front:${{ steps.vars.outputs.VERSION }} .
+          docker build -t louis404/beeshop-front:${{ steps.vars.outputs.VERSION }} .
           docker tag louis404/beeshop-front:${{ steps.vars.outputs.VERSION }} louis404/beeshop-front:latest
 
       - name: Push Docker image
@@ -55,6 +55,8 @@ jobs:
             set -e
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             cd /home/ubuntu/beeshop
+            docker stop beeshop-front || true
+            docker rm beeshop-front || true
             docker compose pull front
             docker compose up -d front
             docker image prune -f
