@@ -17,6 +17,8 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
 ENV NODE_ENV=production
+ENV NUXT_PUBLIC_BASE_URL=http://51.75.140.195:7123
+ENV NUXT_PUBLIC_AUTH_URL=http://51.75.140.195:8080
 RUN pnpm build
 
 # ---- Runtime (slim) ----
