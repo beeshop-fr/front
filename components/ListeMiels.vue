@@ -3,11 +3,14 @@
     <MielsCard
       v-for="miel in miels"
       :key="miel.id"
-      :image="miel.image"
+      :image="miel.image || '/images/miel1.jpg'"
       :title="miel.nom"
-      :type="miel.type"
+      :type="miel.typeMiel"
+      :description="miel.description"
       :date="miel.date"
       :price="miel.prix"
+      :stock="miel.quantite"
+      @add-to-cart="$emit('add-to-cart', miel)"
     >
       <div class="flex gap-2 mt-2">
         <button class="text-sm text-blue-600 hover:underline" @click="$emit('edit', miel)">Modifier</button>
@@ -15,21 +18,13 @@
       </div>
     </MielsCard>
   </div>
-</template>
+</template> 
 
 <script setup lang="ts">
 import MielsCard from './MielsCard.vue'
 
 defineProps<{
-  miels: {
-    id: number
-    nom: string
-    prix: number
-    stock: number
-    image: string
-    type: string
-    date: string
-  }[]
+  miels: any[]
 }>()
 
 defineEmits(['edit', 'delete'])

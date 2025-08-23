@@ -57,7 +57,7 @@
 </template>
 
 <script lang="ts" setup>
-import { navigateTo } from 'nuxt/app'
+import { navigateTo, useCookie, useFetch, useRuntimeConfig } from 'nuxt/app'
 import { ref } from 'vue'
 
 const showLoginModal = ref(false)
@@ -70,60 +70,46 @@ const password = ref('')
 
 const runtimeConfig = useRuntimeConfig()
 
-const register = async () => {
+function parseJwt(token: string) {
   try {
-    const { error } = await useFetch(`${runtimeConfig.public.apiBase}/api/Auth/register`, {
-      method: 'POST',
-      body: {
-        username: username.value,
-        email: email.value,
-        password: password.value
-      }
-    });
+    const base64 = token.split('.')[1]
+    const json = decodeURIComponent(
+      atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+    )
+    return JSON.parse(json)
+  } catch {
+    return null
+  }
+}
 
-    const tokenResponse = await $fetch(`${runtimeConfig.public.apiBase}/api/Auth/login`, {
-      method: 'POST',
-      body: {
-        username: username.value,
-        password: password.value
-      },
-      headers: {
-        'Content-Type': 'application/json'
-      },
-    });
+const saveSession = (token: string) => {
+  console.log("saveSession appelé avec token:", token) // debug
 
-    localStorage.setItem('access_token', tokenResponse.token);
+  const payload = parseJwt(token)
+  console.log("Payload JWT:", payload) // debug
 
-    await navigateTo('/boutique')
+  const roles = payload?.realm_access?.roles || payload?.roles || []
 
-    if (error.value) {
-      console.error('Erreur d’inscription', error.value)
-      return
-    }
+  // Cookies
+  useCookie('access_token', { sameSite: 'lax' }).value = token
+  useCookie('roles', { sameSite: 'lax' }).value = JSON.stringify(roles)
 
-    alert('Inscription réussie !')
-    showRegisterModal.value = false
-  } catch (e) {
-    console.error('Erreur inattendue', e)
+  // LocalStorage
+  if (process.client) {
+    localStorage.setItem('access_token', token)
+    localStorage.setItem('roles', JSON.stringify(roles))
   }
 }
 
 const login = async () => {
   try {
-    const tokenResponse = await $fetch(`${runtimeConfig.public.apiBase}/api/Auth/login`, {
+    const tokenResponse = await $fetch(`${runtimeConfig.public.apiAuthUrl}/api/Auth/login`, {
       method: 'POST',
-      body: {
-        username: username.value,
-        password: password.value,
-      },
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      body: { username: username.value, password: password.value },
+      headers: { 'Content-Type': 'application/json' }
     })
-        console.log(tokenResponse)
-
-    localStorage.setItem('access_token', tokenResponse.token)
-
+    console.log("Réponse login:", tokenResponse)
+    saveSession(tokenResponse.token)
     showLoginModal.value = false
     await navigateTo('/boutique')
   } catch (e) {
@@ -131,4 +117,33 @@ const login = async () => {
     alert('Échec de la connexion. Vérifiez vos identifiants.')
   }
 }
+
+const register = async () => {
+  try {
+    const { error } = await useFetch(`${runtimeConfig.public.apiAuthUrl}/api/Auth/register`, {
+      method: 'POST',
+      body: { username: username.value, email: email.value, password: password.value }
+    })
+
+    if (error.value) {
+      console.error('Erreur d’inscription', error.value)
+      return
+    }
+
+    // Auto-login après inscription
+    const tokenResponse = await $fetch(`${runtimeConfig.public.apiAuthUrl}/api/Auth/login`, {
+      method: 'POST',
+      body: { username: username.value, password: password.value },
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    saveSession(tokenResponse.token)
+    alert('Inscription réussie !')
+    showRegisterModal.value = false
+    await navigateTo('/boutique')
+  } catch (e) {
+    console.error('Erreur inattendue', e)
+  }
+}
+
 </script>

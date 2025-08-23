@@ -9,8 +9,12 @@
         <div v-for="item in panier" :key="item.id" class="flex items-center justify-between bg-white bg-opacity-10 backdrop-blur-md p-4 rounded shadow">
           <div>
             <h2 class="text-lg font-semibold text-white">{{ item.nom }}</h2>
-            <p class="text-sm text-gray-300">{{ item.type }} – {{ item.date }}</p>
-            <p class="text-sm text-jauneMiel font-bold">{{ item.prix }} €</p>
+            <p v-if="item.type || item.date" class="text-sm text-gray-300">
+              <span v-if="item.type">{{ item.type }}</span>
+              <span v-if="item.type && item.date"> – </span>
+              <span v-if="item.date">{{ item.date }}</span>
+            </p>
+            <p class="text-sm text-jauneMiel font-bold">{{ item.prix.toFixed(2) }} €</p>
           </div>
           <div class="flex items-center gap-2">
             <input v-model.number="item.quantite" type="number" min="1" class="w-16 px-2 py-1 border rounded text-black bg-white" />
@@ -19,18 +23,21 @@
         </div>
 
         <div class="text-right text-lg font-semibold mt-6 text-white">
-          Total : {{ totalPanier }} €
+          Total : {{ totalPanier.toFixed(2) }} €
         </div>
 
         <div class="text-right">
-          <button class="bg-buttonColor text-white px-6 py-2 rounded shadow hover:bg-jauneMiel transition" @click="formVisible = true">
+          <button
+            class="bg-buttonColor text-white px-6 py-2 rounded shadow hover:bg-jauneMiel transition disabled:opacity-60"
+            :disabled="!panier.length || loading"
+            @click="formVisible = true">
             Passer la commande
           </button>
         </div>
       </div>
 
       <div v-else class="text-center text-gray-300 text-lg">
-        Votre panier est vide 🍯
+        Votre panier est vide…
       </div>
     </div>
 
@@ -54,11 +61,16 @@
                 {{ item.quantite }} × {{ item.nom }} – {{ (item.quantite * item.prix).toFixed(2) }} €
               </li>
             </ul>
-            <p class="text-right font-bold mt-2">Total : {{ totalPanier }} €</p>
+            <p class="text-right font-bold mt-2">Total : {{ totalPanier.toFixed(2) }} €</p>
           </div>
 
-          <button type="submit" class="w-full bg-buttonColor text-white py-2 rounded hover:bg-jauneMiel transition">
-            Valider la commande
+          <div v-if="errorMsg" class="text-red-600 text-sm">{{ errorMsg }}</div>
+
+          <button type="submit"
+                  :disabled="loading || !infos.email"
+                  class="w-full bg-buttonColor text-white py-2 rounded hover:bg-jauneMiel transition disabled:opacity-60">
+            <span v-if="!loading">Valider la commande</span>
+            <span v-else>Envoi…</span>
           </button>
         </form>
 
@@ -75,13 +87,25 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { useCartStore } from '~/stores/cart'
+
+definePageMeta({ middleware: 'auth' })
+
+type PanierItem = {
+  id: string     // mielId côté back
+  nom: string
+  prix: number
+  quantite: number
+  type?: string
+  date?: string
+}
 
 const router = useRouter()
+const config = useRuntimeConfig()
+const cart = useCartStore()
 
-const panier = ref([
-  { id: 1, nom: 'Miel de lavande', prix: 7.5, quantite: 2, type: 'Fleurs', date: '2024' },
-  { id: 2, nom: 'Miel d’acacia', prix: 6.0, quantite: 1, type: 'Boisé', date: '2024' },
-])
+const panier = computed<PanierItem[]>(() => cart.items)
+const totalPanier = computed(() => cart.total)
 
 const infos = reactive({
   nom: '',
@@ -92,22 +116,59 @@ const infos = reactive({
 
 const formVisible = ref(false)
 const envoye = ref(false)
+const loading = ref(false)
+const errorMsg = ref<string | null>(null)
 
-function retirer(id: number) {
-  panier.value = panier.value.filter(p => p.id !== id)
+// --- Helpers ---
+function isValidEmail(s: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)
 }
-
-function envoyerCommande() {
-  console.log('Infos :', infos)
-  console.log('Commande :', panier.value)
-  envoye.value = true
+function clampQty(item: PanierItem) {
+  if (!item.quantite || item.quantite < 1) item.quantite = 1
+  item.quantite = Math.floor(item.quantite)
 }
-
+function retirer(id: string) {
+  cart.remove(id)
+}
 function fermer() {
   formVisible.value = false
   envoye.value = false
+  errorMsg.value = null
 }
-const totalPanier = computed(() =>
-  panier.value.reduce((t, i) => t + i.quantite * i.prix, 0).toFixed(2)
-)
+
+function buildCheckoutPayload() {
+  return {
+    userEmail: infos.email,
+    // si tu veux inclure nom/téléphone/message, ajoute-les aussi dans le body et gère-les côté back
+    lignes: panier.value.map(i => ({
+      mielId: i.id,
+      quantite: Math.max(1, Math.floor(i.quantite || 1))
+    }))
+  }
+}
+
+// --- Envoi en 1 seul appel ---
+async function envoyerCommande() {
+  errorMsg.value = null
+  loading.value = true
+  try {
+    if (!isValidEmail(infos.email)) throw new Error('Email invalide')
+    if (!panier.value.length) throw new Error('Panier vide')
+
+    const payload = buildCheckoutPayload()
+
+    await $fetch(`${config.public.apiBase}/api/main/Checkout`, {
+      method: 'POST',
+      body: payload
+    })
+
+    envoye.value = true
+    // Option : vider le panier après succès
+    // cart.clear()
+  } catch (err: any) {
+    errorMsg.value = err?.data?.message ?? err?.message ?? 'Erreur lors de l’envoi'
+  } finally {
+    loading.value = false
+  }
+}
 </script>

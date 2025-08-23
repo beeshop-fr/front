@@ -21,16 +21,67 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import ListeMiels from '~/components/ListeMiels.vue'
 import FormMiel from '~/components/FormMiels.vue'
 
-const miels = ref([
-  { id: 1, nom: 'Miel de lavande', prix: 7.5, stock: 12, image: '/images/lavande.jpg', type: 'Fleurs', date: '2024' },
-  { id: 2, nom: 'Miel d’acacia', prix: 6.0, stock: 8, image: '/images/acacia.jpg', type: 'Boisé', date: '2024' },
-])
 
+definePageMeta({ middleware: 'admin' })
+
+const miels = ref<any[]>([])
 const formVisible = ref(false)
 const mielEnCours = ref<any>(null)
+const config = useRuntimeConfig()
+const stocks = ref<any[]>([])
+
+// Chargement initial
+onMounted(async () => {
+  try {
+    const res = await fetch(`${config.public.apiBase}/api/main/Miel`)
+    if (res.ok) {
+      const result = await res.json()
+
+      // Si backend renvoie { count, entities }
+      if (result.entities) {
+        miels.value = result.entities
+      } else {
+        miels.value = result // fallback si c’est déjà un tableau
+      }
+    } else {
+      console.error("Erreur de récupération des miels")
+    }
+
+    // Récupération des stocks
+    const resStocks = await fetch(`${config.public.apiBase}/api/main/Stock`)
+    if (resStocks.ok) {
+      const result = await resStocks.json()
+      const stockList = result.entities 
+      console.log("Stock reçu :", stockList)
+
+      // Par exemple, si tu veux relier ça à un `ref` :
+      stocks.value = stockList
+
+      const stockMap = new Map<string, any>()
+      for (const stock of stockList) {
+        stockMap.set(stock.mielId, stock)
+      }
+
+      miels.value = miels.value.map(miel => {
+        const stock = stockMap.get(miel.id)
+        return {
+          ...miel,
+          stockId: stock?.id || null,
+          quantite: stock?.quantite ?? 0,
+        }
+      })
+    } else {
+      console.error("Erreur de récupération du stock")
+    }
+
+  } catch (e) {
+    console.error(e)
+  }
+})
 
 function ouvrirFormulaire() {
   mielEnCours.value = null
@@ -47,17 +98,62 @@ function editerMiel(miel: any) {
   formVisible.value = true
 }
 
-function enregistrer(miel: any) {
-  const index = miels.value.findIndex(m => m.id === miel.id)
-  if (index !== -1) {
-    miels.value[index] = miel
+async function supprimerMiel(id: string) {
+  const res = await fetch(`${config.public.apiBase}/api/main/Miel/${id}`, { method: 'DELETE' })
+  if (res.ok) {
+    miels.value = miels.value.filter(m => m.id !== id)
   } else {
-    miels.value.push({ ...miel, id: Date.now() })
+    console.error("Erreur suppression miel")
   }
+}
+
+async function enregistrer({ formData, quantite, mielId, stockId }) {
+  const isEditing = !!mielId
+  let mielResult = null
+
+  // Création ou modification du miel
+  if (isEditing) {
+    const response = await fetch(`${config.public.apiBase}/api/main/Miel/${mielId}`, {
+      method: 'PUT',
+      body: formData
+    })
+    if (!response.ok) return console.error("Erreur update miel")
+    mielResult = await response.json()
+    const index = miels.value.findIndex(m => m.id === mielResult.id)
+    if (index !== -1) miels.value[index] = mielResult
+  } else {
+    const response = await fetch(`${config.public.apiBase}/api/main/Miel`, {
+      method: 'POST',
+      body: formData
+    })
+    if (!response.ok) return console.error("Erreur création miel")
+    mielResult = await response.json()
+    miels.value.push(mielResult)
+  }
+
+  // Gestion du stock
+  const stockPayload = {
+    mielId: mielResult.id,
+    quantite
+  }
+
+  const stockUrl = stockId
+    ? `${config.public.apiBase}/api/main/Stock/${stockId}`
+    : `${config.public.apiBase}/api/main/Stock`
+
+  const stockMethod = stockId ? 'PUT' : 'POST'
+
+  const stockRes = await fetch(stockUrl, {
+    method: stockMethod,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(stockPayload)
+  })
+
+  if (!stockRes.ok) {
+    console.error("Erreur stock")
+  }
+
   fermerFormulaire()
 }
 
-function supprimerMiel(id: number) {
-  miels.value = miels.value.filter(m => m.id !== id)
-}
 </script>
