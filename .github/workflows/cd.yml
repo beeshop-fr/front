@@ -1,10 +1,10 @@
-name: CD - Build and Deploy Front
+name: CD - Front (Docker Build/Push + Deploy)
 
 on:
   push:
-    branches:
-      - main
-      - release/**
+    branches: [ main, release/** ]
+    paths: [ "front/**", ".github/workflows/cd.yml", "front/Dockerfile" ]
+  workflow_dispatch: {}
 
 jobs:
   build_and_push:
@@ -70,3 +70,24 @@ jobs:
           if [[ "$REF" == refs/heads/release/* ]]; then
             docker push $IMAGE:rc
           fi
+
+  deploy:
+    needs: build_and_push
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            set -e
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            cd /home/ubuntu/beeshop
+            docker stop beeshop-front || true
+            docker rm beeshop-front || true
+            docker compose pull front
+            docker compose up -d front
+            docker image prune -f
