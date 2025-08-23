@@ -1,58 +1,67 @@
-name: Build & Push (no deploy)
+name: Build & Push (auto)
 
 on:
-  workflow_dispatch:           
-    inputs:
-      push_rc:
-        description: "Tagger aussi :rc (comme sur release/*)"
-        type: boolean
-        default: false
+  workflow_dispatch: {} 
   push:
-    branches: [ main, release/** ]
-    paths: [ "front/**", "front/Dockerfile", ".github/workflows/build.yml" ]
+    branches:
+      - main
+      - release/**
+    paths:
+      - front/**
+      - front/Dockerfile
+      - .github/workflows/cd.yml
 
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
 
-      - name: Compute version (NBGV)
+      - name: "Compute version (NBGV)"
         id: nbgv
         uses: dotnet/nbgv@v0.4
 
-      - name: Echo version & guard
+      - name: "Guard: SemVer 1.x.x only"
+        env:
+          VER: ${{ steps.nbgv.outputs.SemVer2 }}
         run: |
-          echo "SemVer2=${{ steps.nbgv.outputs.SemVer2 }}"
-          echo "SHA=${{ steps.nbgv.outputs.GitCommitIdShort }}"
-          test -n "${{ steps.nbgv.outputs.SemVer2 }}" || { echo "Empty version!"; exit 1; }
+          CLEAN_VER="${VER%%+*}"
+          echo "Computed version: $CLEAN_VER"
+          if [[ ! "$CLEAN_VER" =~ ^1\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version refusée (seules les 1.x.x sont autorisées): $CLEAN_VER"
+            exit 1
+          fi
+          echo "CLEAN_VER=$CLEAN_VER" >> $GITHUB_ENV
 
-      - name: Docker login
+      - name: "Docker login"
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & push
+      - name: "Build & push image"
         env:
           IMAGE: louis404/beeshop-front
-          VER: ${{ steps.nbgv.outputs.SemVer2 }}
-          SHA: ${{ steps.nbgv.outputs.GitCommitIdShort }}
-          REF: ${{ github.ref }}
         run: |
-          CLEAN_VER="${VER%%+*}"   # retire le +gXXXX
-          echo "Build $IMAGE:$CLEAN_VER"
+          set -e
+          echo "Build $IMAGE:${CLEAN_VER}"
 
-          DOCKER_BUILDKIT=1 docker build -t $IMAGE:$CLEAN_VER .
-          docker tag $IMAGE:$CLEAN_VER $IMAGE:sha-$SHA
-
-          if [[ "$REF" == refs/heads/release/* ]]; then
-            docker tag $IMAGE:$CLEAN_VER $IMAGE:rc
+          # Détection Dockerfile & contexte
+          if [ -f front/Dockerfile ]; then
+            DF="front/Dockerfile"
+            CTX="front"
+          elif [ -f Dockerfile ]; then
+            DF="Dockerfile"
+            CTX="."
+          else
+            echo "Aucun Dockerfile trouvé (ni front/Dockerfile ni ./Dockerfile)"
+            echo "Contenu repo:"
+            ls -la
+            exit 1
           fi
 
-          docker push $IMAGE:$CLEAN_VER
-          docker push $IMAGE:sha-$SHA
-          if [[ "$REF" == refs/heads/release/* ]]; then
-            docker push $IMAGE:rc
-          fi
+          echo "Using Dockerfile=$DF  Context=$CTX"
+          DOCKER_BUILDKIT=1 docker build -f "$DF" -t "$IMAGE:${CLEAN_VER}" "$CTX"
+          docker push "$IMAGE:${CLEAN_VER}"

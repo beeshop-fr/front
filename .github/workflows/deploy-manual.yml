@@ -4,13 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag Docker à déployer (ex: 1.1.0, rc, sha-abcdef)"
+        description: "Tag version à déployer (ex: 1.1.0)"
         required: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Validate input tag (must be 1.x.x)
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          if [[ ! "$TAG" =~ ^1\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag invalide: $TAG. Seules les versions 1.x.x sont autorisées."
+            exit 1
+          fi
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -26,19 +34,9 @@ jobs:
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             cd /home/ubuntu/beeshop
 
-            # OPTION A: si ton docker-compose référence directement l'image et le tag via une variable
-            #   image: louis404/beeshop-front:${FRONT_TAG}
-            # alors:
             export FRONT_TAG="$TAG"
+
             docker compose pull front
             docker compose up -d --pull always front
-
-            # OPTION B: si ton compose a un tag hardcodé, on force via un override ad-hoc:
-            # cat > docker-compose.override.yml <<EOF
-            # services:
-            #   front:
-            #     image: ${IMAGE}:${TAG}
-            # EOF
-            # docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --pull always front
 
             docker image prune -f
