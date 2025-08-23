@@ -1,20 +1,16 @@
-name: CD - Build and Deploy Front
+name: Build & Push (no deploy)
 
 on:
   push:
-    branches:
-      - main
-      - release/**
+    branches: [ main, release/** ]
+    paths: [ "front/**", "front/Dockerfile", ".github/workflows/build.yml" ]
 
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
 
       - name: Compute version (NBGV)
         id: nbgv
@@ -26,47 +22,31 @@ jobs:
           echo "SHA=${{ steps.nbgv.outputs.GitCommitIdShort }}"
           test -n "${{ steps.nbgv.outputs.SemVer2 }}" || { echo "Empty version!"; exit 1; }
 
-      - name: Log in to Docker Hub
+      - name: Docker login
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build Docker image
+      - name: Build & push
         env:
           IMAGE: louis404/beeshop-front
           VER: ${{ steps.nbgv.outputs.SemVer2 }}
           SHA: ${{ steps.nbgv.outputs.GitCommitIdShort }}
           REF: ${{ github.ref }}
         run: |
-          # Nettoie le +metadata que Docker n'accepte pas dans les tags
-          CLEAN_VER="${VER%%+*}"
+          CLEAN_VER="${VER%%+*}"   # retire le +gXXXX
+          echo "Build $IMAGE:$CLEAN_VER"
 
-          echo "Building $IMAGE:$CLEAN_VER"
           DOCKER_BUILDKIT=1 docker build -t $IMAGE:$CLEAN_VER .
-
-          # Tags utiles
-          docker tag $IMAGE:$CLEAN_VER $IMAGE:latest
           docker tag $IMAGE:$CLEAN_VER $IMAGE:sha-$SHA
 
-          # Tag rc pour les branches release/*
           if [[ "$REF" == refs/heads/release/* ]]; then
             docker tag $IMAGE:$CLEAN_VER $IMAGE:rc
           fi
 
-      - name: Push Docker image
-        env:
-          IMAGE: louis404/beeshop-front
-          VER: ${{ steps.nbgv.outputs.SemVer2 }}
-          SHA: ${{ steps.nbgv.outputs.GitCommitIdShort }}
-          REF: ${{ github.ref }}
-        run: |
-          CLEAN_VER="${VER%%+*}"
-
           docker push $IMAGE:$CLEAN_VER
-          docker push $IMAGE:latest
           docker push $IMAGE:sha-$SHA
-
           if [[ "$REF" == refs/heads/release/* ]]; then
             docker push $IMAGE:rc
           fi
