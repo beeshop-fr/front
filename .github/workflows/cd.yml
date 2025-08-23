@@ -12,7 +12,19 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version (NBGV)
+        id: nbgv
+        uses: dotnet/nbgv@v0.4
+
+      - name: Echo version & guard
+        run: |
+          echo "SemVer2=${{ steps.nbgv.outputs.SemVer2 }}"
+          echo "SHA=${{ steps.nbgv.outputs.GitCommitIdShort }}"
+          test -n "${{ steps.nbgv.outputs.SemVer2 }}" || { echo "Empty version!"; exit 1; }
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -20,18 +32,41 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Set version
-        id: vars
-        run: |
-          VERSION=$(cat package.json | jq -r .version)
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-
       - name: Build Docker image
+        env:
+          IMAGE: louis404/beeshop-front
+          VER: ${{ steps.nbgv.outputs.SemVer2 }}
+          SHA: ${{ steps.nbgv.outputs.GitCommitIdShort }}
+          REF: ${{ github.ref }}
         run: |
-          docker build -t louis404/beeshop-front:${{ steps.vars.outputs.VERSION }} .
-          docker tag louis404/beeshop-front:${{ steps.vars.outputs.VERSION }} louis404/beeshop-front:latest
+          # Nettoie le +metadata que Docker n'accepte pas dans les tags
+          CLEAN_VER="${VER%%+*}"
+
+          echo "Building $IMAGE:$CLEAN_VER"
+          DOCKER_BUILDKIT=1 docker build -t $IMAGE:$CLEAN_VER .
+
+          # Tags utiles
+          docker tag $IMAGE:$CLEAN_VER $IMAGE:latest
+          docker tag $IMAGE:$CLEAN_VER $IMAGE:sha-$SHA
+
+          # Tag rc pour les branches release/*
+          if [[ "$REF" == refs/heads/release/* ]]; then
+            docker tag $IMAGE:$CLEAN_VER $IMAGE:rc
+          fi
 
       - name: Push Docker image
+        env:
+          IMAGE: louis404/beeshop-front
+          VER: ${{ steps.nbgv.outputs.SemVer2 }}
+          SHA: ${{ steps.nbgv.outputs.GitCommitIdShort }}
+          REF: ${{ github.ref }}
         run: |
-          docker push louis404/beeshop-front:${{ steps.vars.outputs.VERSION }}
-          docker push louis404/beeshop-front:latest
+          CLEAN_VER="${VER%%+*}"
+
+          docker push $IMAGE:$CLEAN_VER
+          docker push $IMAGE:latest
+          docker push $IMAGE:sha-$SHA
+
+          if [[ "$REF" == refs/heads/release/* ]]; then
+            docker push $IMAGE:rc
+          fi
