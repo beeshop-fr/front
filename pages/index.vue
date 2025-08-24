@@ -1,13 +1,28 @@
 <template>
   <div class="relative w-screen h-screen bg-cover bg-center" style="background-image: url('/images/acceuilBackground.jpg');">
-    <div class="absolute inset-0 bg-black/10 backdrop-blur-sm"></div> <!-- Assombrir si besoin -->
+    <div class="absolute inset-0 bg-black/10 backdrop-blur-sm"></div>
 
     <!-- Particules en gouttes de miel -->
     <div v-for="n in 30" :key="n" class="honey-particle"></div>
 
-    <div class="relative flex items-center justify-center h-full text-white text-3xl font-bold">
+    <!-- Conteneur central -->
+    <div class="relative z-10 flex items-center justify-center h-full px-4">
+      <div class="w-full max-w-md">
+        <!-- LOGO + tagline -->
+        <div class="flex flex-col items-center mb-6 translate-y-[-90px]">
 
-      <AccueilForm />
+          <img
+            src="/images/beeshop-logo.png"
+            alt="BeeShop — Apiculture amateur et réservations de pots"
+            class="w-40 md:w-48 beeshop-logo"
+          />
+        </div>
+
+        <!-- Formulaire -->
+        <div class="w-full flex flex-col items-center max-w-sm translate-x-[28px] translate-y-[-30px]">
+        <AccueilForm />
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -59,4 +74,18 @@ import AccueilForm from '~/components/AccueilForm.vue';
 .honey-particle:nth-child(19) { top: 90%; left: 50%; animation-duration: 6s; }
 .honey-particle:nth-child(20) { top: 15%; left: 5%; animation-duration: 8s; }
 
+/* Logo : taille responsive + glow miel + légère oscillation */
+.beeshop-logo {
+  width: clamp(120px, 26vw, 180px);
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 24px rgba(255, 193, 7, 0.28));
+  animation: logo-float 6s ease-in-out infinite;
+}
+
+@keyframes logo-float {
+  0%   { transform: translateY(0) }
+  50%  { transform: translateY(-6px) }
+  100% { transform: translateY(0) }
+}
 </style>
