@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col items-center justify-center bg-componentBackground bg-opacity-90 h-auto w-64 border-4 border-jauneMiel rounded-lg p-5 space-y-4">
     <!-- Titre -->
-    <p class="text-center font-sans font-light text-lg">Bienvenue sur Beeshop !</p>
+    <p class="text-center font-sans font-light text-lg text-fontColor">Bienvenue sur Beeshop !</p>
 
     <div class="flex flex-col w-full p-2 space-y-4">
       <button @click="showLoginModal = true" class="w-full bg-jauneMiel text-black font-sans font-light text-lg py-2 px-4 rounded-md transition hover:bg-grisClair hover:scale-105">
