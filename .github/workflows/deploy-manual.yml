@@ -1,0 +1,42 @@
+name: Deploy Front
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag version à déployer (ex: 1.1.0)"
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate input tag (must be 1.x.x)
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          if [[ ! "$TAG" =~ ^1\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag invalide: $TAG. Seules les versions 1.x.x sont autorisées."
+            exit 1
+          fi
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            set -e
+            IMAGE="louis404/beeshop-front"
+            TAG="${{ github.event.inputs.tag }}"
+            echo "Deploying $IMAGE:$TAG"
+
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            cd /home/ubuntu/beeshop
+
+            export FRONT_TAG="$TAG"
+
+            docker compose pull front
+            docker compose up -d --pull always front
+
+            docker image prune -f

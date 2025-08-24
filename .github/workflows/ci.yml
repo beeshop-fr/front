@@ -1,43 +1,51 @@
-name: Build and Test Front Nuxt with pnpm
+name: CI - Front Build and Test
 
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
 
-    - name: Install pnpm
-      uses: pnpm/action-setup@v2
-      with:
-        version: 8
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'pnpm'
 
-    - name: Check pnpm version
-      run: pnpm --version
+      - name: Check pnpm version
+        run: pnpm --version
 
-    - name: Install dependencies
-      run: npm_config_build_from_source=true pnpm install
+      - name: Install dependencies
+        run: npm_config_build_from_source=true pnpm install --frozen-lockfile
 
-    - name: Build the app
-      run: pnpm build
+      - name: Build the app
+        run: pnpm build
 
-    - name: Run unit tests
-      run: pnpm test
+      - name: Run unit tests
+        run: pnpm test
 
-    - name: Archive production build
-      uses: actions/upload-artifact@v4
-      with:
-        name: nuxt-dist
-        path: ./.output
+      - name: Save build artifact (.output)
+        if: ${{ github.ref_name != 'main' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuxt-output
+          path: front/.output
+
+      - name: Archive production build (same as above, kept for compatibility)
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuxt-dist
+          path: front/.output
