@@ -19,7 +19,12 @@
         <!-- Ligne séparatrice -->
         <div class="border-t border-grisClair my-4"></div>
 
-      <a href="#" class="text-white text-center py-2 bg-componentBackground/90 hover:bg-jauneMiel hover:text-black rounded-md transition">Qui sommes-nous ?</a>
+      <NuxtLink
+        to="/infos"
+        class="text-white text-center py-2 bg-componentBackground/90 hover:bg-jauneMiel hover:text-black rounded-md transition"
+      >
+        Qui sommes-nous ?
+      </NuxtLink>
       
       <div  v-if="isAdmin" class="border-t border-grisClair my-4"></div>
 

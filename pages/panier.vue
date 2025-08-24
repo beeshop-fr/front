@@ -3,7 +3,20 @@
     <div class="absolute inset-0 bg-black/10 backdrop-blur-sm bg-white/5"></div>
 
     <div class="relative z-10 p-6 text-fontColor flex flex-col gap-6 max-w-4xl mx-auto">
-      <h1 class="text-3xl font-bold text-jauneMiel mb-4">Votre panier</h1>
+  
+
+        <div class="flex items-center justify-between mb-4">
+        <!-- Titre -->
+        <h1 class="text-3xl font-bold text-jauneMiel">Votre panier</h1>
+        <button
+          @click="router.push('/boutique')"
+          class="flex items-center gap-2 bg-componentBackground/70 border border-jauneMiel px-4 py-2 rounded text-sm font-semibold text-fontColor hover:bg-jauneMiel hover:text-black transition"
+        >
+          ← Retour
+        </button>
+
+
+      </div>
 
       <div v-if="panier && panier.length > 0" class="space-y-4">
         <div v-for="item in panier" :key="item.id" class="flex items-center justify-between bg-white bg-opacity-10 backdrop-blur-md p-4 rounded shadow">
