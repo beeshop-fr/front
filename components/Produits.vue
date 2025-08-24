@@ -22,10 +22,6 @@
 import Miels from './MielsCard.vue';
 import { ref } from 'vue';
 
-// const miels = ref([
-//   { image: '/images/miel1.jpg', title: 'Miel 1', type: 'Acacia', date: '2024', price: 10 },
-//   // { image: '/images/miel2.jpg', title: 'Miel 2', type: 'Lavande', date: '2024', price: 12 },
-// ]);
 const props = defineProps<{ miels: any[] }>()
 const emit = defineEmits<{ (e:'add-to-cart', miel:any): void }>()
 
