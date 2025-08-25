@@ -47,9 +47,16 @@ const typeLabels = {
   EteLiquide: 'Miel d\'été'
 }
 
-const resolve = (p?: string) => !p ? p : (/^http?:\/\//.test(p) ? p
-  : `${config.public.apiBase}${p.startsWith('/') ? '' : '/'}${p}`)
+const resolve = (p?: string) => {
+  if (!p) return p
+  if (/^https?:\/\//.test(p)) return p
 
+  if (p.startsWith('/images/') || p.startsWith('/api/')) {
+    return `${config.public.apiBase}${p}`
+  }
+
+  return p
+}
 const getTypeLabel = (type: string) => typeLabels[type as keyof typeof typeLabels] || type
 
 const emit = defineEmits<{ (e:'add-to-cart'): void }>()

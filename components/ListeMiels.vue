@@ -3,7 +3,7 @@
     <MielsCard
       v-for="miel in miels"
       :key="miel.id"
-      :image="miel.image"
+      :image="miel.image ?? miel.imagePath"
       :title="miel.nom"
       :type="miel.typeMiel"
       :description="miel.description"
