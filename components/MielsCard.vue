@@ -2,7 +2,7 @@
   <div class="w-full bg-white rounded-lg shadow-md p-4 flex flex-col items-center border border-gray-300 font-sans">
     
     <!-- Image -->
-    <img :src="image" :alt="title || 'Miel'" class="w-full h-32 object-cover rounded-lg mb-2">
+    <img :src="resolve(image)" :alt="title || 'Miel'" class="w-full h-32 object-cover rounded-lg mb-2">
 
     <!-- Infos -->
     <h3 class="text-lg text-gray-600 font-semibold text-center">{{ title }}</h3>
@@ -29,6 +29,8 @@
 </template>
 
 <script setup lang="ts">
+
+const config = useRuntimeConfig()
 const props = defineProps({
   image: String,
   title: String,
@@ -44,6 +46,9 @@ const typeLabels = {
   PrintempsLiquide: 'Miel de fleurs liquide',
   EteLiquide: 'Miel d\'été'
 }
+
+const resolve = (p?: string) => !p ? p : (/^http?:\/\//.test(p) ? p
+  : `${config.public.apiBase}${p.startsWith('/') ? '' : '/'}${p}`)
 
 const getTypeLabel = (type: string) => typeLabels[type as keyof typeof typeLabels] || type
 
