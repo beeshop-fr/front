@@ -115,7 +115,7 @@ const miels = computed(() => {
       date: x.date ?? x.recolte ?? '',
       prix: x.prix ?? x.price ?? 0,
       description: x.description ?? '',
-      image: x.imagePath ? `${apiBase}${x.imagePath}` : (x.image ?? '/images/miel1.jpg'),
+      image: x.imagePath ? `${apiBase}${x.imagePath}` : (x.image ?? '/images/miel-placeholder.jpg'),
       quantite: st?.quantite ?? x.quantite ?? 0,
       stockId: st?.id ?? null
     }
